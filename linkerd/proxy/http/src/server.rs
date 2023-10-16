@@ -45,12 +45,15 @@ impl<N> NewServeHttp<N> {
 
     /// Creates a new `ServeHttp`.
     fn new(h2: H2Settings, inner: N, drain: drain::Watch) -> Self {
+        // 创建一个执行器
         let mut server = hyper::server::conn::Http::new().with_executor(trace::Executor::new());
+        // 设置 http2 相关参数 例如: 流到窗口大小 connection 的窗口大小
         server
             .http2_initial_stream_window_size(h2.initial_stream_window_size)
             .http2_initial_connection_window_size(h2.initial_connection_window_size);
 
         // Configure HTTP/2 PING frames
+        // 判断是否实则了 http keep alive , 如果设置了则设置 http2 相关 keep alive 选项
         if let Some(timeout) = h2.keepalive_timeout {
             // XXX(eliza): is this a reasonable interval between
             // PING frames?
@@ -76,8 +79,11 @@ where
     type Service = ServeHttp<N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 是 Protocol 中的 Http
+        // 提取出 http 的 version
         let version = target.param();
         debug!(?version, "Creating HTTP service");
+        // 传递到下游中去
         let inner = self.inner.new_service(target);
         ServeHttp {
             inner,

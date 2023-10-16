@@ -81,10 +81,12 @@ where
     D::Future: Send + Unpin,
 {
     pub fn new(inner: N, discover: D, timeout: time::Duration) -> Self {
+        // 利用上层传递过来的 discover 创建一个 queue, 默认容量为 10
         let queue = NewQueueThunk::new(
             NewDiscoverThunk { discover },
             CloneParam::from(QUEUE_CAPACITY),
         );
+        // 这里的 cache 用于缓存 OrigDstAddr 对应的  profile 和 policy 
         Self {
             inner,
             cache: NewIdleCached::new(queue, timeout),
@@ -109,7 +111,9 @@ where
     type Service = CachedDiscover<D::Response, N, N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 target 是 Accept , param 是 OrigDstAddr
         let key = target.param();
+        // 使用 OrigDstAddr 创建一个 cache, OrigDstAddr 是数据包来源地址
         let cached = self.cache.new_service(key);
         let inner = self.inner.new_service(target);
         let future = cached.clone().oneshot(());
@@ -153,6 +157,8 @@ where
         let this = self.project();
         let discovery = futures::ready!(this.future.poll(cx))?;
         let inner = this.inner.new_service(discovery);
+        // 如果创建 inner 的 service 成功则把 cache OrigDstAddr 对应的 (profile, policy) 替换成
+        // cache inner service 的 cached
         let cached = this.cached.clone_with(inner);
         task::Poll::Ready(Ok(cached))
     }

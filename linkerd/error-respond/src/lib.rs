@@ -52,6 +52,7 @@ pub struct RespondFuture<R, F> {
 
 impl<R, P: Clone, N> NewRespondService<R, P, N> {
     pub fn layer(params: P) -> impl layer::Layer<N, Service = Self> + Clone {
+        // 这里的 params 是 ExtractRespond 对象
         layer::mk(move |inner| Self {
             inner,
             params: params.clone(),
@@ -69,7 +70,9 @@ where
 
     #[inline]
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 依然是 HttpSidecar
         let new_respond = self.params.extract_param(&target);
+        // 依旧把 HttpSidecar 传递到下游去
         let inner = self.inner.new_service(target);
         RespondService { inner, new_respond }
     }

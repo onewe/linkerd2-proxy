@@ -19,6 +19,7 @@ pub const L5D_PROXY_ERROR: &str = "l5d-proxy-error";
 pub fn layer<R, P: Clone, N>(
     params: P,
 ) -> impl svc::layer::Layer<N, Service = NewRespondService<R, P, N>> + Clone {
+    // 这里的 params 是 ServerRescue 对象
     respond::NewRespondService::layer(ExtractRespond(params))
 }
 
@@ -298,6 +299,7 @@ where
 {
     #[inline]
     fn extract_param(&self, t: &T) -> NewRespond<R> {
+        // 这里的 R 是 HttpRescue
         let EmitHeaders(emit_headers) = self.0.extract_param(t);
         NewRespond {
             rescue: self.0.extract_param(t),

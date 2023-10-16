@@ -60,20 +60,21 @@ impl Outbound<()> {
             .push_http_cached(resolve)
             .push_http_server()
             .into_stack()
-            .push_map_target(HttpSidecar::from);
+            .push_map_target(HttpSidecar::from); // 把 protocol::Http<Sidecar> 转换为 HttpSidecar
 
         opaq.push_protocol(http.into_inner())
             // Use a dedicated target type to bind discovery results to the
             // outbound sidecar stack configuration.
+            // 这里把 Discovery<Accept> 转换为 Sidecar , 并把 Sidecar 传递到下游去
             .map_stack(move |_, _, stk| stk.push_map_target(Sidecar::from))
             // Access cached discovery information.
             .push_discover(self.resolver(profiles, policies))
             // Instrument server-side connections for telemetry.
-            .push_tcp_instrument(|t: &T| {
+            .push_tcp_instrument(|t: &T| { // 转换为  Outbound::Accept, 传递到下一层 newService 中去
                 let addr: OrigDstAddr = t.param();
                 info_span!("proxy", %addr)
             })
-            .into_inner()
+            .into_inner() // orig_ds::Addrs 对象
     }
 }
 

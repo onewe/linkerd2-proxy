@@ -74,13 +74,17 @@ where
     }
 
     fn call(&mut self, t: T) -> Self::Future {
+        // 获取指定地址的 profile
+        // 访问地址
         let addr = t.param();
 
         // Swallow errors in favor of a `None` response.
         let w = self.watch.clone();
         Box::pin(async move {
+            // 监听 地址的 相关的 profile
             match w.spawn_watch(addr).await {
                 Ok(rsp) => {
+                    // 转换为 profile 的 receiver
                     let rx = rsp.into_inner();
                     debug!(profile = ?*rx.borrow(), "Resolved profile");
                     Ok(Some(rx.into()))

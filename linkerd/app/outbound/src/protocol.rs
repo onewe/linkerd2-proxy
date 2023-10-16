@@ -87,8 +87,10 @@ impl<N> Outbound<N> {
             // between traffic that is known to be HTTP or opaque.
             http.push_switch(Ok::<_, Infallible>, opaq.clone().into_inner())
                 .push_on_service(svc::MapTargetLayer::new(io::EitherIo::Left))
+                // 这里的 parent 是 Sidecar 对象 实现了 svc::Param<Protocol> 方法
                 .push_switch(
                     |parent: T| -> Result<_, Infallible> {
+                        // 判断 Sidecar 对象中的 Protocol 类型
                         match parent.param() {
                             Protocol::Http1 => Ok(svc::Either::A(svc::Either::A(Http {
                                 version: http::Version::Http1,
@@ -101,7 +103,10 @@ impl<N> Outbound<N> {
                             Protocol::Opaque => Ok(svc::Either::A(svc::Either::B(parent))),
                             Protocol::Detect => Ok(svc::Either::B(parent)),
                         }
-                    },
+                    }, 
+                    // 如果是 http1 和 http2 协议则走  http stack, 
+                    // 如果是 Opaque 则走 opaq stack
+                    // 如果是 Detect 则走 detect
                     detect.into_inner(),
                 )
                 .push_on_service(svc::BoxService::layer())

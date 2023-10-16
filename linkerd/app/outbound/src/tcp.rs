@@ -50,18 +50,18 @@ impl<N> Outbound<N> {
         NSvc: svc::Service<metrics::SensorIo<I>, Response = (), Error = Error> + Send + 'static,
         NSvc::Future: Send,
     {
-        self.map_stack(|_, rt, inner| {
-            inner
+        self.map_stack(|_, rt, inner| { // 传递 Accept 对象到 N 也就是下一层
+            inner 
                 .push(metrics::NewServer::layer(
-                    rt.metrics.proxy.transport.clone(),
+                    rt.metrics.proxy.transport.clone(), // transport::Metrics 从 Accept 对象中提取 Arc<Metrics>, 因为 Accept 实现了 svc::Param<transport::labels::Key>
                 ))
-                .push_filter(|t: T| Accept::try_from(t.param()))
+                .push_filter(|t: T| Accept::try_from(t.param())) // 把 orig_ds::Addrs 对象转换为 Result<Accept>
                 .push(rt.metrics.tcp_errors.to_layer())
                 .instrument(mk_span)
                 .check_new_service::<T, I>()
                 .push_on_service(svc::BoxService::layer())
                 .push(svc::ArcNewService::layer())
-                .check_new_service::<T, I>()
+                .check_new_service::<T, I>() // orig_ds::Addrs
         })
     }
 }

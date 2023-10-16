@@ -49,11 +49,13 @@ where
         S::Future: Send,
     {
         // Get an update and stream.
+        // 初始化目标地址的 stream  和 初始化的 profile 或者 policy
         let (init, rsp) = self.init(&target, None).await?;
 
         Ok(rsp.map(move |inner| {
             // Spawn a background task to keep the profile watch up-to-date until all copies of `rx`
             // have dropped.
+            // 创建一个 watch channel 用于观察 profile 的变化
             let (tx, rx) = watch::channel(init);
             tokio::spawn(self.publish_updates(target, tx, inner).in_current_span());
             rx
@@ -103,11 +105,14 @@ where
     {
         loop {
             trace!("Awaiting readiness");
+            // 等待内部 grpc 服务 ready
             let status = match self.inner.ready().await {
                 Ok(svc) => {
                     trace!("Issuing request");
+                    // 发送 grpc 请求到 控制面获取 目标地址的 profile
                     match svc.call(target.clone()).await {
                         Ok(mut rsp) => match Self::next(rsp.get_mut()).await {
+                            // 从流中获取 一个 profile
                             Ok(init) => return Ok((init, rsp)),
                             Err(status) => {
                                 debug!(%status, "Stream failed");
@@ -126,6 +131,7 @@ where
                 }
             };
 
+            // 执行指数退避
             let mut new_backoff = self.recover.recover(status)?;
             debug!("Recovering");
             let use_new_backoff = if let Some(b) = backoff.as_mut() {
@@ -157,6 +163,7 @@ where
         S: Service<T, Response = InnerRsp<U>, Error = tonic::Status>,
         S::Future: Send,
     {
+        // 无限循环监听变化, 一旦目标地址的 profile 有改动 通过 tx 发送变化新值
         loop {
             tokio::select! {
                 biased;

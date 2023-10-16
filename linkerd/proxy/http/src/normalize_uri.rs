@@ -79,7 +79,12 @@ where
     type Service = NormalizeUri<N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里有个小技巧 linkerd 给 T 实现了 impl<T: ToOwned> Param<T::Owned> for T
+        // 给空元组实现了 impl<P, T: Param<P>> ExtractParam<P, T> for () 
+        // 所以这里的 httpSideCar 可以提取出 DefaultAuthority
+        // impl svc::Param<http::normalize_uri::DefaultAuthority> for HttpSidecar
         let DefaultAuthority(default) = self.extract.extract_param(&target);
+        // 把 HttpSidecar 传递到下游
         let inner = self.inner.new_service(target);
         NormalizeUri::new(inner, default)
     }

@@ -51,7 +51,12 @@ impl<N> Outbound<N> {
         NSvc: svc::Service<Req, Error = Error> + Send + 'static,
         NSvc::Future: Send,
     {
+        // 这里的 discovery  D 接收参数 OrigDstAddr  返回一个 (Option<profiles::Receiver>, policy::Receiver) 元组
+        // OrigDstAddr 代表来源数据包地址, 因为此时流量已经
         self.map_stack(|config, _, stk| {
+            // Discovery<T>: From<(D::Response, T)>
+            // push_new_cached_discover 这个方法会生成 一个 (Option<profiles::Receiver>, policy::Receiver) 和 Accept 然后调用 Discovery 的 from
+            // 方法生成 Discovery 对象, 再把 Discovery 对象传递到下游
             stk.lift_new_with_target()
                 .push_new_cached_discover(discover, config.discovery_idle_timeout)
                 .check_new_service::<T, _>()
@@ -84,10 +89,13 @@ impl<N> Outbound<N> {
         svc::mk(move |OrigDstAddr(orig_dst)| {
             tracing::debug!(addr = %orig_dst, "Discover");
 
+            // 获取一个 Receiver<Profile> 使用 watch 实现 从控制面获取
             let profile = profiles
                 .clone()
                 .get_profile(profiles::LookupAddr(orig_dst.into()))
                 .instrument(tracing::debug_span!("profiles"));
+
+            // 获取一个 Receiver<ClientPolicy> 使用 watch 实现 从控制面获取
             let policy = policies
                 .get_policy(orig_dst.into())
                 .instrument(tracing::debug_span!("policy"));
@@ -103,6 +111,7 @@ impl<N> Outbound<N> {
 
                 // If there was a policy resolution, return it with the profile so
                 // the stack can determine how to switch on them.
+                // 判断是否存在 policy 如果存在 policy 直接返回 （配置,策略） 元组
                 match policy {
                     Ok(policy) => return Ok((profile, policy)),
                     // XXX(ver) The policy controller may (for the time being) reject
@@ -118,6 +127,7 @@ impl<N> Outbound<N> {
                     Err(error) => return Err(error),
                 }
 
+                // （配置）profile 转换 为 policy（策略）
                 // If there was a profile resolution, try to use it to synthesize a
                 // enpdoint policy.
                 if let Some(profile) = profile {
@@ -135,6 +145,7 @@ impl<N> Outbound<N> {
                                 .unwrap_or_else(|| (orig_dst, Default::default()));
                             // TODO(ver) We should be able to figure out resource coordinates for
                             // the endpoint?
+                            // 由于从控制面 未获取到 policy 所有这里生成一个 forward 的 policy
                             synthesize_forward_policy(&META, detect_timeout, queue, addr, meta)
                         },
                     );

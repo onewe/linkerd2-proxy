@@ -64,9 +64,11 @@ where
     }
 
     fn call(&mut self, target: T) -> Self::Future {
+        // 获取目标地址
         let ConcreteAddr(addr) = target.param();
         debug!(dst = %addr, context = %self.context_token, "Resolving");
 
+        // 发送 grpc 请求到控制面, 控制面返回 name addr 对应的 地址
         let req = api::GetDestination {
             path: addr.to_string(),
             context_token: self.context_token.clone(),
@@ -78,6 +80,7 @@ where
             // detect errors (like InvalidArgument).
             let rsp = client.get(grpc::Request::new(req)).await?;
             trace!(metadata = ?rsp.metadata());
+            // name addr 对应的 地址信息流
             let stream: UpdatesStream = Box::pin(resolution(rsp.into_inner()));
             Ok(stream)
         })
@@ -87,6 +90,7 @@ where
 fn resolution(
     mut stream: tonic::Streaming<api::Update>,
 ) -> impl Stream<Item = Result<resolve::Update<Metadata>, grpc::Status>> {
+    // 解析流
     try_stream! {
         while let Some(update) = stream.next().await {
             match update?.update {
@@ -94,6 +98,7 @@ fn resolution(
                     addrs,
                     metric_labels,
                 })) => {
+                    // 新增
                     let addr_metas = addrs
                         .into_iter()
                         .filter_map(|addr| pb::to_addr_meta(addr, &metric_labels))
@@ -105,6 +110,7 @@ fn resolution(
                 }
 
                 Some(api::update::Update::Remove(api::AddrSet { addrs })) => {
+                    // 移除
                     let sock_addrs = addrs
                         .into_iter()
                         .filter_map(pb::to_sock_addr)
@@ -116,6 +122,7 @@ fn resolution(
                 }
 
                 Some(api::update::Update::NoEndpoints(api::NoEndpoints { exists })) => {
+                    // 空
                     info!("No endpoints");
                     let update = if exists {
                         Update::Reset(Vec::new())

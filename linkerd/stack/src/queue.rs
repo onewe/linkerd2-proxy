@@ -163,8 +163,10 @@ where
     type Service = QueueWithoutTimeout<Req, S::Response, S::Error>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 默认 capacity 容量为 10, 从 CloneParam<queue::Capacity> 中提取出
         let Capacity(capacity) = self.extract.extract_param(&target);
         let inner = self.inner.new_service(target);
+        // 创建一个 buffer
         Buffer::new(BoxService::new(inner), capacity)
     }
 }

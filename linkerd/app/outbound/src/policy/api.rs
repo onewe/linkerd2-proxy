@@ -67,6 +67,7 @@ where
     }
 
     fn call(&mut self, addr: Addr) -> Self::Future {
+        // 发送 grpc 请求到 控制面 获取 地址对应的 策略
         let req = {
             let target = match addr {
                 Addr::Name(ref name) => api::traffic_spec::Target::Authority(name.to_string()),
