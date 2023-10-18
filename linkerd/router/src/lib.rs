@@ -95,6 +95,11 @@ where
     type Service = OneshotRoute<Sel, N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 也就是 Params<T> T == Http<HttpSidecar>
+        // extract 是一个空元组 linkerd 给空元组实现了 impl<P, T: Param<P>> ExtractParam<P, T> for ()
+        // 然后 impl<T: ToOwned> Param<T::Owned> for T  , 由于 T 实现了 Clone 所以 T 就实现了 ToOwned
+        // 因此 select 是 Params<Http<HttpSidecar>>
+        // 把 Params<Http<HttpSidecar> 传递到下游
         let select = self.extract.extract_param(&target);
         let new_route = self.inner.new_service(target);
         OneshotRoute { select, new_route }
@@ -132,6 +137,8 @@ where
     }
 
     fn call(&mut self, req: Req) -> Self::Future {
+        // 因为 Params<Http<HttpSidecar>> 实现了 svc::router::SelectRoute<http::Request<B>> for Params<T>
+        // 所以选择出来的 key 是 RouteParams
         match self.select.select(&req) {
             Ok(key) => future::Either::Left({
                 let route = self.new_route.new_service(key);

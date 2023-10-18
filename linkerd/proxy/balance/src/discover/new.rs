@@ -42,6 +42,7 @@ where
         match ready!(this.discover.poll_discover(cx)) {
             Some(change) => Poll::Ready(Some(Ok(match change.map_err(Into::into)? {
                 Change::Insert(key, target) => {
+                    // 这里 利用 (Balance<Http<Sidecar>>, endpoint) 创建 tcp service
                     let svc = this.new.new_service((key.clone(), target));
                     Change::Insert(key, svc)
                 }

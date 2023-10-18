@@ -158,7 +158,7 @@ where
         let discovery = futures::ready!(this.future.poll(cx))?;
         let inner = this.inner.new_service(discovery);
         // 如果创建 inner 的 service 成功则把 cache OrigDstAddr 对应的 (profile, policy) 替换成
-        // cache inner service 的 cached
+        // inner 中的 Discovery<Accept> 对象 
         let cached = this.cached.clone_with(inner);
         task::Poll::Ready(Ok(cached))
     }

@@ -97,17 +97,19 @@ where
     type Service = Balance<C, Req, S>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T target 是 Balance<Http<Sidecar>>
         let new = NewNewPeakEwma {
             inner: self.inner.clone(),
             _marker: PhantomData,
         };
+        // 创建一个 discover
         let disco = discover::spawn_new_from_resolve(
             self.update_queue_capacity,
             self.resolve.clone(),
             new,
             target,
         );
-
+        // p2c 算法进行负载均衡
         Balance::from_rng(disco, &mut thread_rng()).expect("RNG must be valid")
     }
 }

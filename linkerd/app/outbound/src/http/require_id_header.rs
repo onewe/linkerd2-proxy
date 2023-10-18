@@ -44,6 +44,8 @@ where
     type Service = RequireIdentity<N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 是 Endpoint 对象
+        // 获取 tls 配置
         let tls = target.param();
         let inner = self.inner.new_service(target);
         RequireIdentity { tls, inner }

@@ -56,8 +56,11 @@ where
     type Policy = RetryPolicy;
 
     fn new_policy(&self, target: &T) -> Option<Self::Policy> {
+        // 从 RouteParams<Http<HttpSideCar> 中提取出 Route
         let route: Route = target.param();
+        // 从 RouteParams<Http<HttpSideCar> 中提取出 ProfileRouteLabels
         let labels: ProfileRouteLabels = target.param();
+        // 创建出 重试策略
         Some(RetryPolicy {
             metrics: self.metrics.get_handle(labels),
             budget: route.retries()?.budget().clone(),

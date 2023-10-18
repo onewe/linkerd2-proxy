@@ -135,6 +135,7 @@ impl<N> Outbound<N> {
                 .push_switch(Ok::<_, Infallible>, forward.into_inner())
                 .push_switch(
                     move |parent: T| -> Result<_, Infallible> {
+                        // 这里的 T 是 Concrete<Http<Sidecar>>
                         Ok(match parent.param() {
                             Dispatch::Balance(addr, ewma) => {
                                 svc::Either::A(svc::Either::A(Balance { addr, ewma, parent }))
@@ -221,6 +222,7 @@ where
                     move |((addr, metadata), target): ((SocketAddr, Metadata), Self)| {
                         tracing::trace!(%addr, ?metadata, ?target, "Resolved endpoint");
                         let is_local = inbound_ips.contains(&addr.ip());
+                        // 把 （(SocketAddr, Metadata), Balance<Http<Sidecar>>） 转换为 Endpoint
                         Endpoint {
                             addr: Remote(ServerAddr(addr)),
                             metadata,

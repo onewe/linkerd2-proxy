@@ -63,19 +63,29 @@ where
     type Service = SpawnWatch<S>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 target 是 Http<HttpSidecar>
+        // Http<HttpSidecar> 实现了 svc::Param<watch::Receiver<Routes>>
+        // 所以 target_rx 获取的是 watch::Receiver<Routes>
         let mut target_rx = target.param();
 
         // Create a `NewService` that is used to process updates to the watched
         // value. This allows inner stacks to, for instance, scope caches to the
         // target.
+        // 这里把 Http<HttpSidecar> 传递到 NewCloneService
         let new_inner = self.inner.new_service(target);
 
         let inner = {
+            // 获取 route 对象 p
             let p = (*target_rx.borrow_and_update()).clone();
+            // 创建下游服务 , 在创建服务是 会把 (route, Http<HttpSidecar>) 转换为 RouterParams<Http<HttpSidecar>> 对象
+            // RouterParams 实现了 From<(Routes, T)> for RouterParams<T>
             new_inner.new_service(p)
         };
+
+        // 创建一个 watch
         let (tx, rx) = watch::channel(inner.clone());
 
+        // loop 循环检测 如果 route 发生变化则 重新创建一个 RouterParams 并通知监听方
         tokio::spawn(
             async move {
                 loop {

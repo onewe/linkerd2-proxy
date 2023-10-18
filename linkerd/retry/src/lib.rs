@@ -145,9 +145,13 @@ where
     type Service = Retry<P::Policy, N::Service, O>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 依然是 RouteParams<Http<HttpSideCar> 
         // Determine if there is a retry policy for the given target.
+
+        // 根据 RouteParams<Http<HttpSideCar> 创建出一个 policy
         let policy = self.new_policy.new_policy(&target);
 
+        // 把 RouteParams<Http<HttpSideCar> 传递到下游
         let inner = self.inner.new_service(target);
         Retry {
             policy,
@@ -194,11 +198,14 @@ where
     fn call(&mut self, req: Req) -> Self::Future {
         trace!(retryable = %self.policy.is_some());
 
+        // 判断是否有策略, 如果没有策略则默认为 proxy 策略
         let policy = match self.policy.as_ref() {
             None => return future::Either::Left(self.proxy.proxy(&mut self.inner, req)),
             Some(p) => p,
         };
 
+
+        // 创建出一个可以 retry 的 request
         let retry_req = match policy.prepare_request(req) {
             Either::A(retry_req) => retry_req,
             Either::B(req) => return future::Either::Left(self.proxy.proxy(&mut self.inner, req)),
@@ -208,6 +215,8 @@ where
             self.inner.clone(),
             P::prepare_response as fn(Rsp) -> P::ResponseFuture,
         );
+
+        // 发送请求
         let retry = tower::retry::Retry::new(policy.clone(), inner);
         let retry = self.proxy.clone().into_service(retry);
         future::Either::Right(retry.oneshot(retry_req))

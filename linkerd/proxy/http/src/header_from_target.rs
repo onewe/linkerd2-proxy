@@ -46,7 +46,10 @@ where
     type Service = HeaderFromTarget<N::Service>;
 
     fn new_service(&self, t: T) -> Self::Service {
+        // 这里的 T 是 RouteParams<Http<HttpSideCar>
+        // 从 RouteParams<Http<HttpSideCar> 提取出 CanonicalDstHeader 并转换为 HeaderPair
         let HeaderPair(name, value) = self.extract.extract_param(&t).into();
+        // 并把 RouteParams<Http<HttpSideCar> 传递到下游
         let inner = self.inner.new_service(t);
         HeaderFromTarget { name, value, inner }
     }

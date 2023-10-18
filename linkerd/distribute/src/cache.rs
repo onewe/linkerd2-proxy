@@ -54,12 +54,17 @@ where
     type Service = BackendCache<K, S>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 此处的 target 是 Params<Http<HttpSidecar>>
+        // 提取出 Backends
+        // 这里的 Backends 集合包含的是 Concrete 对象
         let params::Backends(backends) = self.extract.extract_param(&target);
+        // Params<Http<HttpSidecar>> 传递到下游 
         let newk = self.inner.new_service(target);
 
         let mut cache = self.backends.lock();
 
         // Remove all backends that aren't in the updated set of addrs.
+        // 判断缓存中的 backend 是否包含传递下来的 backend
         cache.retain(|backend, _| {
             if backends.contains(backend) {
                 true
@@ -71,6 +76,9 @@ where
 
         // If there are additional addrs, cache a new service for each.
         debug_assert!(backends.len() >= cache.len());
+        // 判断传递下来的 backends 集合长度是否大于 cache 集合长度
+        // 下面就是做更新缓存的操作
+        // 缓存里存放的是 Concrete -> 具体的 service
         if backends.len() > cache.len() {
             cache.reserve(backends.len());
             for backend in &*backends {

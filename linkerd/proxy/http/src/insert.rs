@@ -73,7 +73,10 @@ where
     type Service = Insert<N::Service, ValLazy<P>, P>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 是 RouteParams<Http<HttpSideCar> 
+        // 从 RouteParams<Http<HttpSideCar>  提取出
         let param = target.param();
+        // 把 RouteParams<Http<HttpSideCar> 传递到下游
         let inner = self.inner.new_service(target);
         Insert::new(inner, ValLazy(param))
     }

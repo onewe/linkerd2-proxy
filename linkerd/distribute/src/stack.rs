@@ -54,15 +54,19 @@ where
     /// Distributions **MUST** include only keys configured in backends.
     /// Referencing other keys causes a panic.
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 是 RouteParams<Http<HttpSideCar> 
+        // 从 RouteParams<Http<HttpSideCar>  提取出 Distribution<K>
+        // 这里的 key 是 Concrete
         let dist = self.extract.extract_param(&target);
         tracing::debug!(backends = ?dist.keys(), "New distribution");
 
         // Build the backends needed for this distribution, in the required
         // order (so that weighted indices align).
+        // 把 RouteParams<Http<HttpSideCar> 传递到下游
         let newk = self.inner.new_service(target);
         let backends = dist
             .keys()
-            .iter()
+            .iter() // 使用 Concrete 创建 服务
             .map(|k| (k.clone(), newk.new_service(k.clone())))
             .collect();
         Distribute::new(backends, dist)

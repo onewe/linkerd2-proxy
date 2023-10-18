@@ -49,6 +49,9 @@ where
     type Service = MapErr<fn(Error) -> Error, Timeout<N::Service>>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 T 是 RouteParams<Http<HttpSideCar>
+        // 从 RouteParams<Http<HttpSideCar> 提取出 timeout 的配置信息
+        // RouteParams<Http<HttpSideCar> 传递到下游
         let svc = match self.extract.extract_param(&target) {
             ResponseTimeout(Some(t)) => Timeout::new(self.inner.new_service(target), t),
             ResponseTimeout(None) => Timeout::passthru(self.inner.new_service(target)),

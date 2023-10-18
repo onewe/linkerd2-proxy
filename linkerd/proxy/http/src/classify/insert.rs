@@ -42,7 +42,10 @@ where
     type Service = InsertClassifyResponse<C, N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
+        // 这里的 target T 是 RouteParams<Http<HttpSideCar>>
+        // RouteParams<Http<HttpSideCar>> 实现了 svc::Param<classify::Request> for RouteParams<T>
         let classify = self.extract.extract_param(&target);
+        // 把 RouteParams<Http<HttpSideCar>> 传递到 下游
         let inner = self.inner.new_service(target);
         InsertClassifyResponse { classify, inner }
     }
