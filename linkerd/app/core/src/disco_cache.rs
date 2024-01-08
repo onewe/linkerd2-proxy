@@ -114,6 +114,7 @@ where
         // 这里的 target 是 Accept , param 是 OrigDstAddr
         let key = target.param();
         // 使用 OrigDstAddr 创建一个 cache, OrigDstAddr 是数据包来源地址
+        // 这里的 cache 用于缓存 OrigDstAddr 对应的  profile 和 policy 
         let cached = self.cache.new_service(key);
         let inner = self.inner.new_service(target);
         let future = cached.clone().oneshot(());
